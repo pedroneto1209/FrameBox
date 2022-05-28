@@ -16,6 +16,7 @@ void setup() {
 
   pinMode(LED, OUTPUT);
 
+  // Wifi setup
   Serial.print("Connecting to ");
   Serial.println(WIFI_NAME);
   WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
@@ -26,18 +27,19 @@ void setup() {
   Serial.println("Connected!");
   Serial.println(WiFi.localIP());
 
+  // GET endpoint
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     state = !state;
     digitalWrite(LED, state);
     request->send(200, "text/plain", "message received");
   });
-
   server.begin();
 }
 
 void loop() {
   unsigned long currentMillis = millis();
 
+  // Tries reconnecting when Wifi fails
   if ((WiFi.status() != WL_CONNECTED) &&
       (currentMillis - previousMillis >= interval)) {
     Serial.print(millis());
