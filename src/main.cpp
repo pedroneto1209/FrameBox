@@ -104,8 +104,7 @@ void setup() {
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(110, 0);
-  display.println("teste");
-  // display.println(ip[3]);
+  display.println(ip[3]);
 
   // GET endpoint
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -137,17 +136,21 @@ void setup() {
 
     // animate display
 
-    // display.drawBitmap(0, 16, epd_bitmap_teste, 128, 64, WHITE);
-    // display.display();
-
     request->send(200, "text/plain", "message received");
   });
 
   server.begin();
 }
 
+void displayAnimation() {
+  display.display();
+  display.drawBitmap(0, 16, epd_bitmap_teste, 128, 48, WHITE);
+}
+
 void loop() {
   unsigned long currentMillis = millis();
+
+  displayAnimation();
 
   // Tries reconnecting when Wifi fails
   if ((WiFi.status() != WL_CONNECTED) &&
