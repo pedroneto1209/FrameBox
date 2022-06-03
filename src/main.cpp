@@ -1,21 +1,58 @@
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
 #include <ESPAsyncWebServer.h>
-#include <WiFi.h>
+#include <stdio.h>
+#include <string.h>
 
+// Display
+#define SCREEN_WIDTH 128
+#define SCREEN_HEIGHT 64
+#define OLED_RESET -1
+
+// Devices
 #define LED 2
-#define WIFI_NAME "NET.AP 901 2Ghz"
-#define WIFI_PASSWORD "31415926"
+#define BUZZER 18
 
+// Wifi
+#define WIFI_NAME "VIVOFIBRA-B190"
+#define WIFI_PASSWORD "9A93A32AA7"
+
+// Variables
 unsigned long previousMillis = 0;
 unsigned long interval = 30000;
 bool isOpen = false;
+const unsigned char epd_bitmap_teste[] PROGMEM = {};
 
+// Classes
 AsyncWebServer server(80);
+Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 void buzzer() {
   if (isOpen) {
     Serial.println("Opening sound");
+    ledcAttachPin(BUZZER, 1);
+    ledcWriteNote(1, NOTE_C, 8);
+    delay(100);
+    ledcDetachPin(BUZZER);
+    delay(50);
+    ledcAttachPin(BUZZER, 1);
+    ledcWriteNote(1, NOTE_C, 8);
+    delay(100);
+    ledcDetachPin(BUZZER);
+    delay(50);
+
   } else {
     Serial.println("Closing sound");
+    ledcAttachPin(BUZZER, 1);
+    ledcWriteNote(1, NOTE_C, 8);
+    delay(100);
+    ledcDetachPin(BUZZER);
+    delay(50);
+    ledcAttachPin(BUZZER, 1);
+    ledcWriteNote(1, NOTE_C, 6);
+    delay(100);
+    ledcDetachPin(BUZZER);
+    delay(50);
   }
 }
 
@@ -35,7 +72,7 @@ void led() {
   }
 }
 
-void display() {
+void updateDisplay() {
   if (isOpen) {
     Serial.println("Opening animation");
   } else {
@@ -47,6 +84,7 @@ void setup() {
   Serial.begin(115200);
 
   pinMode(LED, OUTPUT);
+  pinMode(BUZZER, OUTPUT);
 
   // Wifi setup
   Serial.print("Yellow led");
@@ -56,8 +94,18 @@ void setup() {
     Serial.print('.');
     delay(1000);
   }
+  IPAddress ip = WiFi.localIP();
   Serial.println("Blue led");
-  Serial.println(WiFi.localIP());
+  Serial.println(ip);
+
+  // Display setup
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  display.clearDisplay();
+  display.setTextSize(1);
+  display.setTextColor(WHITE);
+  display.setCursor(110, 0);
+  display.println("teste");
+  // display.println(ip[3]);
 
   // GET endpoint
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
@@ -68,7 +116,7 @@ void setup() {
     buzzer();
     servo();
     led();
-    display();
+    updateDisplay();
 
     request->send(200, "text/plain", "message received");
   });
@@ -87,8 +135,14 @@ void setup() {
       Serial.println("------");
     }
 
+    // animate display
+
+    // display.drawBitmap(0, 16, epd_bitmap_teste, 128, 64, WHITE);
+    // display.display();
+
     request->send(200, "text/plain", "message received");
   });
+
   server.begin();
 }
 
