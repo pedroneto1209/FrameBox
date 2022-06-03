@@ -10,7 +10,9 @@
 #define OLED_RESET -1
 
 // Devices
-#define LED 2
+#define LEDR 4
+#define LEDG 16
+#define LEDB 17
 #define BUZZER 18
 
 // Wifi
@@ -18,9 +20,11 @@
 #define WIFI_PASSWORD "9A93A32AA7"
 
 // Variables
+int lastLED = LEDR;
 unsigned long previousMillis = 0;
 unsigned long interval = 30000;
 bool isOpen = false;
+char title[] = "Te amo.";
 const unsigned char epd_bitmap_default[1024] PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -127,11 +131,36 @@ void servo() {
   }
 }
 
-void led() {
+void led(int color) {
+  if (color == LEDR) {
+    digitalWrite(LEDR, HIGH);
+    digitalWrite(LEDG, LOW);
+    digitalWrite(LEDB, LOW);
+  }
+  if (color == LEDG) {
+    digitalWrite(LEDR, LOW);
+    digitalWrite(LEDG, HIGH);
+    digitalWrite(LEDB, LOW);
+    lastLED = color;
+  }
+  if (color == LEDB) {
+    digitalWrite(LEDR, LOW);
+    digitalWrite(LEDG, LOW);
+    digitalWrite(LEDB, HIGH);
+    lastLED = color;
+  }
+  if (color == -1) {
+    led(lastLED);
+  }
+}
+
+void updateLed() {
   if (isOpen) {
     Serial.println("Green led");
+    led(LEDG);
   } else {
     Serial.println("Blue led");
+    led(LEDB);
   }
 }
 
@@ -144,13 +173,16 @@ void updateDisplay() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(9600);
 
-  pinMode(LED, OUTPUT);
+  pinMode(LEDR, OUTPUT);
+  pinMode(LEDG, OUTPUT);
+  pinMode(LEDB, OUTPUT);
   pinMode(BUZZER, OUTPUT);
 
   // Wifi setup
-  Serial.print("Yellow led");
+  Serial.print("Red led");
+  led(LEDR);
   Serial.println(WIFI_NAME);
   WiFi.begin(WIFI_NAME, WIFI_PASSWORD);
   while (WiFi.status() != WL_CONNECTED) {
@@ -159,6 +191,7 @@ void setup() {
   }
   IPAddress ip = WiFi.localIP();
   Serial.println("Blue led");
+  led(LEDB);
   Serial.println(ip);
 
   // Display setup
@@ -166,18 +199,21 @@ void setup() {
   display.clearDisplay();
   display.setTextSize(1);
   display.setTextColor(WHITE);
-  display.setCursor(110, 0);
-  display.println(ip[3]);
+  display.setCursor(0, 0);
+  display.print(title);
+  display.setCursor(90, 0);
+  display.print(ip[2]);
+  display.print(".");
+  display.print(ip[3]);
 
   // GET endpoint
   server.on("/", HTTP_GET, [](AsyncWebServerRequest* request) {
     // Set open/closed state
     isOpen = !isOpen;
-    digitalWrite(LED, isOpen);
 
     buzzer();
     servo();
-    led();
+    updateLed();
     updateDisplay();
 
     request->send(200, "text/plain", "message received");
@@ -185,21 +221,16 @@ void setup() {
 
   // POST display endpoint
   server.on("/", HTTP_POST, [](AsyncWebServerRequest* request) {
-    int paramsNr = request->params();
-    Serial.println(paramsNr);
+    AsyncWebParameter* p = request->getParam(0);
 
-    for (int i = 0; i < paramsNr; i++) {
-      AsyncWebParameter* p = request->getParam(i);
-      Serial.print("Param name: ");
-      Serial.println(p->name());
-      Serial.print("Param value: ");
-      Serial.println(p->value());
-      Serial.println("------");
-    }
+    String data = p->value();
+    char d;
 
-    // animate display
+    d = data[0];
 
-    request->send(200, "text/plain", "message received");
+    // Serial.printf("%s", &d);
+
+    request->send(200, "text/plain", "received");
   });
 
   server.begin();
@@ -219,11 +250,12 @@ void loop() {
   if ((WiFi.status() != WL_CONNECTED) &&
       (currentMillis - previousMillis >= interval)) {
     Serial.print(millis());
-    Serial.println("Yellow led");
+    Serial.println("Red led");
+    led(LEDR);
     WiFi.disconnect();
     WiFi.reconnect();
     previousMillis = currentMillis;
   } else if (WiFi.status() == WL_CONNECTED) {
-    // sets led to current state
+    led(-1);
   }
 }
