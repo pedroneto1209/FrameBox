@@ -1,5 +1,6 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <ESP32Servo.h>
 #include <ESPAsyncWebServer.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,6 +15,8 @@
 #define LEDG 16
 #define LEDB 17
 #define BUZZER 18
+#define LID 13
+#define LOCK 12
 
 // Wifi
 #define WIFI_NAME "VIVOFIBRA-B190"
@@ -90,44 +93,59 @@ const unsigned char epd_bitmap_default[1024] PROGMEM = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+
 // Classes
+Servo lid;
+Servo lock;
 AsyncWebServer server(80);
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
 void buzzer() {
   if (isOpen) {
     Serial.println("Opening sound");
-    ledcAttachPin(BUZZER, 1);
-    ledcWriteNote(1, NOTE_C, 8);
+    ledcAttachPin(BUZZER, 12);
+    ledcWriteNote(12, NOTE_C, 8);
     delay(100);
     ledcDetachPin(BUZZER);
     delay(50);
-    ledcAttachPin(BUZZER, 1);
-    ledcWriteNote(1, NOTE_C, 8);
+    ledcAttachPin(BUZZER, 12);
+    ledcWriteNote(12, NOTE_C, 8);
     delay(100);
     ledcDetachPin(BUZZER);
     delay(50);
 
   } else {
     Serial.println("Closing sound");
-    ledcAttachPin(BUZZER, 1);
-    ledcWriteNote(1, NOTE_C, 8);
+    ledcAttachPin(BUZZER, 12);
+    ledcWriteNote(12, NOTE_C, 8);
     delay(100);
     ledcDetachPin(BUZZER);
     delay(50);
-    ledcAttachPin(BUZZER, 1);
-    ledcWriteNote(1, NOTE_C, 6);
+    ledcAttachPin(BUZZER, 12);
+    ledcWriteNote(12, NOTE_C, 6);
     delay(100);
     ledcDetachPin(BUZZER);
     delay(50);
   }
 }
 
-void servo() {
+void updateServo() {
   if (isOpen) {
     Serial.println("Opening box");
+    lock.write(180);
+    delay(1000);
+
+    for (int pos = 60; pos <= 160; pos += 1) {
+      lid.write(pos);
+    }
   } else {
     Serial.println("Closing box");
+    for (int pos = 160; pos >= 60; pos -= 1) {
+      lid.write(pos);
+    }
+    delay(1000);
+
+    lock.write(8);
   }
 }
 
@@ -164,14 +182,6 @@ void updateLed() {
   }
 }
 
-void updateDisplay() {
-  if (isOpen) {
-    Serial.println("Opening animation");
-  } else {
-    Serial.println("Closing animation");
-  }
-}
-
 void setup() {
   Serial.begin(9600);
 
@@ -179,6 +189,10 @@ void setup() {
   pinMode(LEDG, OUTPUT);
   pinMode(LEDB, OUTPUT);
   pinMode(BUZZER, OUTPUT);
+
+  // Servo setup
+  lid.attach(LID, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH);
+  lock.attach(LOCK, MIN_PULSE_WIDTH, MAX_PULSE_WIDTH);
 
   // Wifi setup
   Serial.print("Red led");
@@ -212,9 +226,8 @@ void setup() {
     isOpen = !isOpen;
 
     buzzer();
-    servo();
+    updateServo();
     updateLed();
-    updateDisplay();
 
     request->send(200, "text/plain", "message received");
   });
